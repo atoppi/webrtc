@@ -41,7 +41,14 @@ func (e *Endpoint) close() error {
 // Read reads a packet of len(p) bytes from the underlying conn
 // that are matched by the associated MuxFunc
 func (e *Endpoint) Read(p []byte) (int, error) {
-	return e.buffer.Read(p)
+	var ancillary uint16
+	n, err := e.buffer.ReadWithAncillary(p, &ancillary)
+	return n, err
+}
+
+func (e *Endpoint) ReadWithAncillary(p []byte, ancillary *uint16) (int, error) {
+	n, err := e.buffer.ReadWithAncillary(p, ancillary)
+	return n, err
 }
 
 // Write writes len(p) bytes to the underlying conn

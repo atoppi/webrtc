@@ -7,11 +7,11 @@ package mux
 import (
 	"errors"
 	"io"
-	"net"
 	"sync"
 
 	"github.com/pion/ice/v3"
 	"github.com/pion/logging"
+	"github.com/pion/transport/v3"
 	"github.com/pion/transport/v3/packetio"
 )
 
@@ -21,7 +21,7 @@ const maxBufferSize = 1000 * 1000 // 1MB
 // Config collects the arguments to mux.Mux construction into
 // a single structure
 type Config struct {
-	Conn          net.Conn
+	Conn          transport.ConnWithAncillary
 	BufferSize    int
 	LoggerFactory logging.LoggerFactory
 }
@@ -29,7 +29,7 @@ type Config struct {
 // Mux allows multiplexing
 type Mux struct {
 	lock       sync.RWMutex
-	nextConn   net.Conn
+	nextConn   transport.ConnWithAncillary
 	endpoints  map[*Endpoint]MatchFunc
 	bufferSize int
 	closedCh   chan struct{}
@@ -106,8 +106,9 @@ func (m *Mux) readLoop() {
 	}()
 
 	buf := make([]byte, m.bufferSize)
+	var ancillary uint16
 	for {
-		n, err := m.nextConn.Read(buf)
+		n, err := m.nextConn.ReadWithAncillary(buf, &ancillary)
 		switch {
 		case errors.Is(err, io.EOF), errors.Is(err, ice.ErrClosed):
 			return
@@ -119,14 +120,14 @@ func (m *Mux) readLoop() {
 			return
 		}
 
-		if err = m.dispatch(buf[:n]); err != nil {
+		if err = m.dispatchWithAncillary(buf[:n], &ancillary); err != nil {
 			m.log.Errorf("mux: ending readLoop dispatch error %s", err.Error())
 			return
 		}
 	}
 }
 
-func (m *Mux) dispatch(buf []byte) error {
+func (m *Mux) dispatchWithAncillary(buf []byte, ancillary *uint16) error {
 	var endpoint *Endpoint
 
 	m.lock.Lock()
@@ -147,7 +148,7 @@ func (m *Mux) dispatch(buf []byte) error {
 		return nil
 	}
 
-	_, err := endpoint.buffer.Write(buf)
+	_, err := endpoint.buffer.WriteWithAncillary(buf, ancillary)
 
 	// Expected when bytes are received faster than the endpoint can process them (#2152, #2180)
 	if errors.Is(err, packetio.ErrFull) {
@@ -156,4 +157,8 @@ func (m *Mux) dispatch(buf []byte) error {
 	}
 
 	return err
+}
+
+func (m *Mux) dispatch(buf []byte) error {
+	return m.dispatchWithAncillary(buf, nil)
 }

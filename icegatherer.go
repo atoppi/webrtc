@@ -125,6 +125,7 @@ func (g *ICEGatherer) createAgent() error {
 		DisableActiveTCP:       g.api.settingEngine.iceDisableActiveTCP,
 		MaxBindingRequests:     g.api.settingEngine.iceMaxBindingRequests,
 		BindingRequestHandler:  g.api.settingEngine.iceBindingRequestHandler,
+		EnableEcnParsing:       g.api.settingEngine.ecnEnableParsing,
 	}
 
 	requestedNetworkTypes := g.api.settingEngine.candidates.ICENetworkTypes

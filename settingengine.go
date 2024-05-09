@@ -86,7 +86,7 @@ type SettingEngine struct {
 	disableSRTPReplayProtection               bool
 	disableSRTCPReplayProtection              bool
 	net                                       transport.Net
-	BufferFactory                             func(packetType packetio.BufferPacketType, ssrc uint32) io.ReadWriteCloser
+	BufferFactory                             func(packetType packetio.BufferPacketType, ssrc uint32) packetio.ReadWriteCloserWithAncillary
 	LoggerFactory                             logging.LoggerFactory
 	iceTCPMux                                 ice.TCPMux
 	iceUDPMux                                 ice.UDPMux
@@ -96,6 +96,7 @@ type SettingEngine struct {
 	disableMediaEngineCopy                    bool
 	srtpProtectionProfiles                    []dtls.SRTPProtectionProfile
 	receiveMTU                                uint
+	ecnEnableParsing                          bool
 	iceMaxBindingRequests                     *uint16
 }
 
@@ -373,6 +374,12 @@ func (e *SettingEngine) DisableMediaEngineCopy(isDisabled bool) {
 // Leave this 0 for the default receiveMTU
 func (e *SettingEngine) SetReceiveMTU(receiveMTU uint) {
 	e.receiveMTU = receiveMTU
+}
+
+// Enable parsing of ECN bits from IP header (only for Linux and MacOs).
+// Default is false.
+func (e *SettingEngine) EnableEcnParsing(isEnabled bool) {
+	e.ecnEnableParsing = isEnabled
 }
 
 // SetDTLSRetransmissionInterval sets the retranmission interval for DTLS.

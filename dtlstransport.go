@@ -494,7 +494,16 @@ func (t *DTLSTransport) streamsForSSRC(ssrc SSRC, streamInfo interceptor.StreamI
 	}
 
 	rtpInterceptor := t.api.interceptor.BindRemoteStream(&streamInfo, interceptor.RTPReaderFunc(func(in []byte, a interceptor.Attributes) (n int, attributes interceptor.Attributes, err error) {
-		n, err = rtpReadStream.Read(in)
+		if !t.api.settingEngine.ecnEnableParsing {
+			n, err = rtpReadStream.Read(in)
+		} else {
+			var ancillary uint16
+			n, err = rtpReadStream.ReadWithAncillary(in, &ancillary)
+			if a == nil {
+				a = make(interceptor.Attributes)
+			}
+			a.SetEcn(&ancillary)
+		}
 		return n, a, err
 	}))
 
@@ -509,7 +518,12 @@ func (t *DTLSTransport) streamsForSSRC(ssrc SSRC, streamInfo interceptor.StreamI
 	}
 
 	rtcpInterceptor := t.api.interceptor.BindRTCPReader(interceptor.RTCPReaderFunc(func(in []byte, a interceptor.Attributes) (n int, attributes interceptor.Attributes, err error) {
-		n, err = rtcpReadStream.Read(in)
+		var ancillary uint16
+		n, err = rtcpReadStream.ReadWithAncillary(in, &ancillary)
+		if a == nil {
+			a = make(interceptor.Attributes)
+		}
+		a.SetEcn(&ancillary)
 		return n, a, err
 	}))
 

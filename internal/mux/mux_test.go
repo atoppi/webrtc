@@ -17,13 +17,21 @@ import (
 
 const testPipeBufferSize = 8192
 
+type muxConnWithAncillary struct {
+	net.Conn
+}
+
+func (c muxConnWithAncillary) ReadWithAncillary(p []byte, a *uint16) (int, error) {
+	return 0, nil
+}
+
 func TestNoEndpoints(t *testing.T) {
 	// In memory pipe
 	ca, cb := net.Pipe()
 	require.NoError(t, cb.Close())
 
 	m := NewMux(Config{
-		Conn:          ca,
+		Conn:          muxConnWithAncillary{ca},
 		BufferSize:    testPipeBufferSize,
 		LoggerFactory: logging.NewDefaultLoggerFactory(),
 	})
@@ -37,10 +45,18 @@ type muxErrorConnReadResult struct {
 	data []byte
 }
 
+func (c muxErrorConnReadResult) ReadWithAncillary(p []byte, a *uint16) (int, error) {
+	return 0, nil
+}
+
 // muxErrorConn
 type muxErrorConn struct {
 	net.Conn
 	readResults []muxErrorConnReadResult
+}
+
+func (m *muxErrorConn) ReadWithAncillary(p []byte, a *uint16) (int, error) {
+	return 0, nil
 }
 
 func (m *muxErrorConn) Read(b []byte) (n int, err error) {
@@ -110,7 +126,7 @@ func TestNonFatalDispatch(t *testing.T) {
 	in, out := net.Pipe()
 
 	m := NewMux(Config{
-		Conn:          out,
+		Conn:          muxConnWithAncillary{out},
 		LoggerFactory: logging.NewDefaultLoggerFactory(),
 		BufferSize:    1500,
 	})
